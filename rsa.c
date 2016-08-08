@@ -99,7 +99,6 @@ rsa_to_onion(RSA *r, char *o)
 	SHA1(bin, i, d);
 	OPENSSL_free(bin);
 	onion_encode(&o[0], &d[0]);
-	onion_encode(&o[8], &d[5]);
 	o[16] = 0;
 	return true;
 fail:
