@@ -13,6 +13,7 @@ void *s = NULL;
 bool full = false;
 size_t num_threads = 1;
 pthread_t *threads = NULL;
+pthread_mutex_t lock;
 
 void
 die(void)
@@ -29,10 +30,11 @@ die(void)
 		}
 		free(threads);
 	}
+	pthread_mutex_destroy(&lock);
 	if (s)
 		destroy_search(s);
 	fprintf(stderr, "Bye o/\n");
-	pthread_exit(NULL);
+	_exit(0);
 }
 
 void
@@ -44,7 +46,6 @@ thread_die(void)
 void
 usage(void)
 {
-
 	fprintf(stderr, "Usage:\n");
 	fprintf(stderr, "\t-d <path to dictionary> : load words from dictionary\n");
 	fprintf(stderr, "\t-f : only match onions entirely populated by dictionary words\n");
@@ -84,13 +85,14 @@ handle_args(int argc, char **argv)
 struct thread_args {
 	bool full;
 	const void *s;
+	pthread_mutex_t m;
 };
 
 void *
 thread_shim(void *_arg)
 {
 	struct thread_args *arg = _arg;
-	test_onions(arg->s, arg->full);
+	test_onions(arg->s, arg->full, &arg->m);
 	return NULL;
 }
 
@@ -107,7 +109,7 @@ main(int argc, char **argv) {
 		die();
 	}
 	pthread_attr_t attr;
-	threads = calloc(num_threads+1, sizeof(pthread_t));
+	threads = calloc(num_threads, sizeof(pthread_t));
 	if (!threads) {
 		fprintf(stderr, "Allocation failed.\n");
 		die();
@@ -115,6 +117,7 @@ main(int argc, char **argv) {
 	struct thread_args arg = {
 		.s = s,
 		.full = full,
+		.m = PTHREAD_MUTEX_INITIALIZER,
 	};
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
@@ -127,10 +130,8 @@ main(int argc, char **argv) {
 			fprintf(stderr, "Done\n");
 		}
 	}
+	pthread_attr_destroy(&attr);
 	signal(SIGINT, die);
 	fprintf(stderr, "Starting search. Use ctrl-c to exit.\n");
-	for (size_t i = 0; i < num_threads; i++) {
-		pthread_join(threads[i], NULL);
-	}
-	die();
+	pthread_join(threads[0], NULL);
 }

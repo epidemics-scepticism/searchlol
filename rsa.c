@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <err.h>
+#include <pthread.h>
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
 #include <openssl/rand.h>
@@ -54,74 +55,109 @@ seed_rng(void)
 }
 
 static RSA *
-gen_rsa(void)
+gen_rsa(pthread_mutex_t *lock)
 {
 	if (!RAND_status())
 		seed_rng();
-	unsigned long len = 1024;
+	int ret = -1;
 	BIGNUM *e = NULL;
 	RSA *r = NULL;
 
+	pthread_mutex_lock(lock);
 	e = BN_new();
+	pthread_mutex_unlock(lock);
 	if (!e) {
 		warnx("BN_new");
 		goto fail;
 	}
+	pthread_mutex_lock(lock);
+	BN_init(e);
+	pthread_mutex_unlock(lock);
 	if (!BN_set_word(e, 65537)) {
 		warnx("BN_set_word");
 		goto fail;
 	}
+	pthread_mutex_lock(lock);
 	r = RSA_new();
+	pthread_mutex_unlock(lock);
 	if (!r) {
 		warnx("RSA_new");
 		goto fail;
 	}
-	if (!RSA_generate_key_ex(r, len, e, NULL)) {
+	pthread_mutex_lock(lock);
+	ret = RSA_generate_key_ex(r, 1024, e, NULL);
+	pthread_mutex_unlock(lock);
+	if (!ret) {
 		warnx("RSA_generate_key");
 		goto fail;
 	}
-	if (e) {BN_free(e);e=NULL;}
+	if (e) {
+		pthread_mutex_lock(lock);
+		BN_free(e);
+		pthread_mutex_unlock(lock);
+		e=NULL;
+	}
 	return r;
 fail:
-	if (e) {BN_free(e);e=NULL;}
-	if (r) {RSA_free(r);r=NULL;}
+	if (e) {
+		pthread_mutex_lock(lock);
+		BN_free(e);
+		pthread_mutex_unlock(lock);
+		e=NULL;
+	}
+	if (r) {
+		pthread_mutex_lock(lock);
+		RSA_free(r);
+		pthread_mutex_unlock(lock);
+		r=NULL;
+	}
 	return NULL;
 }
 
 static bool
-rsa_to_onion(RSA *r, char *o)
+rsa_to_onion(RSA *r, char *o, pthread_mutex_t *lock)
 {
 	if (!r || !o)
 		return false;
 	unsigned char *bin = NULL;
+	pthread_mutex_lock(lock);
 	int i = i2d_RSAPublicKey(r, &bin);
+	pthread_mutex_unlock(lock);
 	if (!bin)
 		return false;
 	if (i < 0)
 		goto fail;
-	unsigned char d[20];
+	unsigned char d[20] = { 0 };
+	pthread_mutex_lock(lock);
 	SHA1(bin, i, d);
+	pthread_mutex_unlock(lock);
+	pthread_mutex_lock(lock);
 	OPENSSL_free(bin);
+	pthread_mutex_unlock(lock);
 	onion_encode(&o[0], &d[0]);
 	o[16] = 0;
 	return true;
 fail:
-	if (bin) OPENSSL_free(bin);
+	if (bin) {
+		pthread_mutex_lock(lock);
+		OPENSSL_free(bin);
+		pthread_mutex_unlock(lock);
+	}
 	return false;
 }
 
 void
-test_onions(const void *s, const bool full)
+test_onions(const void *s, const bool full, pthread_mutex_t *lock)
 {
 	seed_rng();
 	char o[17];
 	RSA *r = NULL;
 	FILE *out = NULL;
 	while (true) {
-		r = gen_rsa();
+		r = gen_rsa(lock);
 		if (!r)
 			goto end_loop;
-		if (!rsa_to_onion(r,o))
+		if (!rsa_to_onion(r, o, lock))
 			goto end_loop;
 		if (search_search(s, o, full)) {
 			warnx("found '%s'", o);
@@ -130,10 +166,17 @@ test_onions(const void *s, const bool full)
 				warn("fopen");
 				goto end_loop;
 			}
+			pthread_mutex_lock(lock);
 			PEM_write_RSAPrivateKey(out, r, NULL, NULL, 0, NULL, NULL);
+			pthread_mutex_unlock(lock);
 		}
 end_loop:
-		if (r) {RSA_free(r);r=NULL;}
+		if (r) {
+			pthread_mutex_lock(lock);
+			RSA_free(r);
+			pthread_mutex_unlock(lock);
+			r=NULL;
+		}
 		if (out) {fclose(out);out=NULL;}
 	}
 }
