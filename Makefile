@@ -1,5 +1,5 @@
 CFLAGS=-O2 -std=c11 -s
-LFLAGS=-lcrypto
+LFLAGS=-lcrypto -lpthread
 
 default: main
 
