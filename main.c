@@ -9,7 +9,6 @@
 
 void *s = NULL;
 bool full = false;
-bool populated = false;
 
 void
 die(void)
@@ -21,6 +20,7 @@ die(void)
 	fprintf(stderr, "Bye o/\n");
 	_exit(0);
 }
+
 void
 usage(void)
 {
@@ -29,6 +29,7 @@ usage(void)
 			fprintf(stderr, "\t-d <path to dictionary> : load words from dictionary\n");
 			fprintf(stderr, "\t-f : only match onions entirely populated by dictionary words\n");
 }
+
 bool
 handle_args(int argc, char **argv)
 {
