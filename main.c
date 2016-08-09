@@ -57,7 +57,7 @@ handle_args(int argc, char **argv)
 			populated = true;
 			break;
 		case 't':
-			if (!sscanf(optarg, "%llu", &num_threads) || !num_threads)
+			if (!sscanf(optarg, "%u", &num_threads) || !num_threads)
 				num_threads = 1;
 			break;
 		default:
@@ -104,7 +104,7 @@ main(int argc, char **argv) {
 		.full = full,
 	};
 	for (size_t i = 0; i < num_threads; i++) {
-		fprintf(stderr, "Starting thread %llu/%llu...", i+1, num_threads);
+		fprintf(stderr, "Starting thread %u/%u...", i+1, num_threads);
 		if (pthread_create(&threads[i], NULL, thread_shim, &arg)) {
 			fprintf(stderr, "Failed\n");
 			die();
