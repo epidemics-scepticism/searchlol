@@ -13,7 +13,6 @@ void *s = NULL;
 bool full = false;
 size_t num_threads = 1;
 pthread_t *threads = NULL;
-pthread_mutex_t lock;
 
 void
 die(void)
@@ -30,7 +29,6 @@ die(void)
 		}
 		free(threads);
 	}
-	pthread_mutex_destroy(&lock);
 	if (s)
 		destroy_search(s);
 	fprintf(stderr, "Bye o/\n");
@@ -132,6 +130,7 @@ main(int argc, char **argv) {
 	}
 	pthread_attr_destroy(&attr);
 	signal(SIGINT, die);
-	fprintf(stderr, "Starting search. Use ctrl-c to exit.\n");
-	pthread_join(threads[0], NULL);
+	fprintf(stderr, "Starting search. Use ctrl-c or EOF to exit.\n");
+	while (fgetc(stdin) != EOF);
+	die();
 }
