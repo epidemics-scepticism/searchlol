@@ -44,6 +44,11 @@ seed_rng(void)
 			read_bytes += tmp;
 		}
 	}
+	while (!RAND_status()) {
+		size_t tmp = fread(buf, 1, sizeof(buf), entropy);
+		RAND_seed(buf, tmp);
+	}
+	fclose(entropy);
 	RAND_seed(buf, sizeof(buf));
 	seeded_rng = true;
 }
@@ -51,22 +56,20 @@ seed_rng(void)
 static RSA *
 gen_rsa(void)
 {
-	if (!seeded_rng)
+	if (!RAND_status())
 		seed_rng();
 	unsigned long len = 1024;
-	static BIGNUM *e = NULL;
+	BIGNUM *e = NULL;
 	RSA *r = NULL;
 
+	e = BN_new();
 	if (!e) {
-		e = BN_new();
-		if (!e) {
-			warnx("BN_new");
-			goto fail;
-		}
-		if (!BN_set_word(e, 65537)) {
-			warnx("BN_set_word");
-			goto fail;
-		}
+		warnx("BN_new");
+		goto fail;
+	}
+	if (!BN_set_word(e, 65537)) {
+		warnx("BN_set_word");
+		goto fail;
 	}
 	r = RSA_new();
 	if (!r) {
@@ -77,6 +80,7 @@ gen_rsa(void)
 		warnx("RSA_generate_key");
 		goto fail;
 	}
+	if (e) {BN_free(e);e=NULL;}
 	return r;
 fail:
 	if (e) {BN_free(e);e=NULL;}

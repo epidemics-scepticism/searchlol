@@ -17,15 +17,28 @@ pthread_t *threads = NULL;
 void
 die(void)
 {
-	if (s) {
-		fprintf(stderr, "Cleaning up...\n");
+	fprintf(stderr, "Cleaning up...\n");
+	if (threads) {
+		for (size_t i = 0; i < num_threads; i++) {
+			fprintf(stderr, "Stopping thread %u/%u...", i+1, num_threads);
+			if (pthread_cancel(threads[i])) {
+				fprintf(stderr, "Fail!\n");
+			} else {
+				fprintf(stderr, "Done\n");
+			}
+		}
+		free(threads);
+	}
+	if (s)
 		destroy_search(s);
-	}
-	for (pthread_t *p = threads; p && *p; p++) {
-		pthread_cancel(*p);
-	}
 	fprintf(stderr, "Bye o/\n");
-	_exit(0);
+	pthread_exit(NULL);
+}
+
+void
+thread_die(void)
+{
+	pthread_exit(NULL);
 }
 
 void
@@ -83,7 +96,6 @@ thread_shim(void *_arg)
 
 int
 main(int argc, char **argv) {
-	signal(SIGINT, die);
 	s = new_search();
 	if (!s) {
 		fprintf(stderr, "Fatal error while allocating new search root\n");
@@ -94,6 +106,7 @@ main(int argc, char **argv) {
 		usage();
 		die();
 	}
+	pthread_attr_t attr;
 	threads = calloc(num_threads+1, sizeof(pthread_t));
 	if (!threads) {
 		fprintf(stderr, "Allocation failed.\n");
@@ -103,17 +116,21 @@ main(int argc, char **argv) {
 		.s = s,
 		.full = full,
 	};
+	pthread_attr_init(&attr);
+	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
 	for (size_t i = 0; i < num_threads; i++) {
 		fprintf(stderr, "Starting thread %u/%u...", i+1, num_threads);
-		if (pthread_create(&threads[i], NULL, thread_shim, &arg)) {
+		if (pthread_create(&threads[i], &attr, thread_shim, &arg)) {
 			fprintf(stderr, "Failed\n");
 			die();
 		} else {
 			fprintf(stderr, "Done\n");
 		}
 	}
+	signal(SIGINT, die);
 	fprintf(stderr, "Starting search. Use ctrl-c to exit.\n");
-	test_onions(s, full);
+	for (size_t i = 0; i < num_threads; i++) {
+		pthread_join(threads[i], NULL);
+	}
 	die();
-	return 0; /* lol jk */
 }
