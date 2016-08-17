@@ -165,10 +165,6 @@ main(int argc, char **argv) {
 	};
 	sigaction(SIGINT, &sa, NULL);
 	sigaction(SIGUSR1, &sa, NULL);
-//	sigset_t sigs;
-//	sigemptyset(&sigs);
-//	int sig;
-///	sigwait(&sigs, &sig);
 	for (;;) {
 		sleep(600);
 		dump_stats();
