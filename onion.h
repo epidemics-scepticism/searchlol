@@ -1,5 +1,4 @@
-#ifndef _ONION_H
-#define _ONION_H
+#pragma once
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -12,4 +11,3 @@ bool onion_only(const u8 *word);
 void onion_decode(u8 *dst, const u8 *src);
 /* dst is 16 bytes, src is 10 bytes */
 void onion_encode(u8 *dst, const u8 *src);
-#endif

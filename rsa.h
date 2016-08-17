@@ -1,6 +1,6 @@
-#ifndef _SEARCH_RSA_H
-#define _SEARCH_RSA_H
+#pragma once
 #include <stdbool.h>
 #include <pthread.h>
-void test_onions(const void *s, const bool full, pthread_mutex_t *lock);
-#endif
+void test_onions(const void *s, const bool full);
+size_t thetime(void);
+void dump_stats(void);

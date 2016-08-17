@@ -14,6 +14,7 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+
 #include <stdio.h>
 #include <stdbool.h>
 #include <err.h>
@@ -23,10 +24,16 @@
 #include <openssl/rand.h>
 #include <openssl/sha.h>
 #include <openssl/x509.h>
+#include <sys/time.h>
 #include "search.h"
 #include "onion.h"
 
 static bool seeded_rng = false;
+
+static size_t num_keys = 0;
+static size_t num_matches = 0;
+size_t start_time = 0;
+static pthread_mutex_t stats_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static void
 seed_rng(void)
@@ -55,128 +62,118 @@ seed_rng(void)
 }
 
 static RSA *
-gen_rsa(pthread_mutex_t *lock)
+gen_rsa(void)
 {
 	if (!RAND_status())
 		seed_rng();
 	int ret = -1;
-	BIGNUM *e = NULL;
+	int e_init = 0;
+	BIGNUM e;
 	RSA *r = NULL;
 
-	pthread_mutex_lock(lock);
-	e = BN_new();
-	pthread_mutex_unlock(lock);
-	if (!e) {
-		warnx("BN_new");
-		goto fail;
+	if (!e_init) {
+		BN_init(&e);
+		if (!BN_set_word(&e, 65537)) {
+			warnx("BN_set_word");
+			goto fail;
+		}
+		e_init = 1;
 	}
-	pthread_mutex_lock(lock);
-	BN_init(e);
-	pthread_mutex_unlock(lock);
-	if (!BN_set_word(e, 65537)) {
-		warnx("BN_set_word");
-		goto fail;
-	}
-	pthread_mutex_lock(lock);
 	r = RSA_new();
-	pthread_mutex_unlock(lock);
 	if (!r) {
 		warnx("RSA_new");
 		goto fail;
 	}
-	pthread_mutex_lock(lock);
-	ret = RSA_generate_key_ex(r, 1024, e, NULL);
-	pthread_mutex_unlock(lock);
+	ret = RSA_generate_key_ex(r, 1024, &e, NULL);
 	if (!ret) {
 		warnx("RSA_generate_key");
 		goto fail;
 	}
-	if (e) {
-		pthread_mutex_lock(lock);
-		BN_free(e);
-		pthread_mutex_unlock(lock);
-		e=NULL;
-	}
 	return r;
 fail:
-	if (e) {
-		pthread_mutex_lock(lock);
-		BN_free(e);
-		pthread_mutex_unlock(lock);
-		e=NULL;
-	}
 	if (r) {
-		pthread_mutex_lock(lock);
 		RSA_free(r);
-		pthread_mutex_unlock(lock);
 		r=NULL;
 	}
 	return NULL;
 }
 
 static bool
-rsa_to_onion(RSA *r, char *o, pthread_mutex_t *lock)
+rsa_to_onion(RSA *r, char *o)
 {
 	if (!r || !o)
 		return false;
 	unsigned char *bin = NULL;
-	pthread_mutex_lock(lock);
 	int i = i2d_RSAPublicKey(r, &bin);
-	pthread_mutex_unlock(lock);
 	if (!bin)
 		return false;
 	if (i < 0)
 		goto fail;
 	unsigned char d[20] = { 0 };
-	pthread_mutex_lock(lock);
 	SHA1(bin, i, d);
-	pthread_mutex_unlock(lock);
-	pthread_mutex_lock(lock);
 	OPENSSL_free(bin);
-	pthread_mutex_unlock(lock);
 	onion_encode(&o[0], &d[0]);
 	o[16] = 0;
 	return true;
 fail:
 	if (bin) {
-		pthread_mutex_lock(lock);
 		OPENSSL_free(bin);
-		pthread_mutex_unlock(lock);
 	}
 	return false;
 }
 
 void
-test_onions(const void *s, const bool full, pthread_mutex_t *lock)
+test_onions(const void *s, const bool full)
 {
 	seed_rng();
 	char o[17];
 	RSA *r = NULL;
 	FILE *out = NULL;
 	while (true) {
-		r = gen_rsa(lock);
+		r = gen_rsa();
 		if (!r)
 			goto end_loop;
-		if (!rsa_to_onion(r, o, lock))
+		pthread_mutex_lock(&stats_lock);
+		num_keys++;
+		pthread_mutex_unlock(&stats_lock);
+		if (!rsa_to_onion(r, o))
 			goto end_loop;
 		if (search_search(s, o, full)) {
 			warnx("found '%s'", o);
+			pthread_mutex_lock(&stats_lock);
+			num_matches++;
+			pthread_mutex_unlock(&stats_lock);
 			out = fopen(o, "w");
 			if (!out) {
 				warn("fopen");
 				goto end_loop;
 			}
-			pthread_mutex_lock(lock);
 			PEM_write_RSAPrivateKey(out, r, NULL, NULL, 0, NULL, NULL);
-			pthread_mutex_unlock(lock);
 		}
 end_loop:
 		if (r) {
-			pthread_mutex_lock(lock);
 			RSA_free(r);
-			pthread_mutex_unlock(lock);
 			r=NULL;
 		}
 		if (out) {fclose(out);out=NULL;}
 	}
+}
+
+size_t
+thetime(void)
+{
+	struct timeval t;
+	gettimeofday(&t, NULL);
+	return (size_t)t.tv_sec;
+}
+
+void
+dump_stats(void)
+{
+	/* the threads might end up missing some stats, need to create a mutex to  */
+	size_t uptime = thetime() - start_time;
+	if (start_time == 0 || uptime == 0) return;
+	fprintf(stderr, "-- Stats --\nWe have been running for %lu seconds.\nWe have generated %lu keys (%lu keys/second).\nWe have found %lu matches.\n",
+		uptime, num_keys, num_keys / uptime, num_matches
+	);
 }
