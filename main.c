@@ -166,7 +166,10 @@ main(int argc, char **argv) {
 	sigaction(SIGINT, &sa, NULL);
 	sigaction(SIGUSR1, &sa, NULL);
 	for (;;) {
-		sleep(600);
+		unsigned int i = 600;
+		do {
+			i = sleep(i);
+		} while (i);
 		dump_stats();
 	}
 	return 0;
