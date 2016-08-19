@@ -6,3 +6,17 @@ search for onions (work in progress, toy implementation)
 2. We generate RSA keys, encode to ASN.1, SHA1 and base32 encode the first 10 bytes of the SHA1 output, giving us 16bytes of base32 characters (a through z and 2 through 7).
 3. Starting at the root of our tree, we follow its branches, following the branch corresponding to each letter, essentially performing a parallel strcmp() of the onion address against all the words in our dictionary at once.
 4. If the onion is a match, and we're not in "full" mode we save the onion. If we are in full mode, we recurse into search again from where the last word ended, only returning matching if the onion consists purely of strings in our dictionary.
+
+```text
+hello
+help
+hack
+```
+would be represented as
+```text
+   _[a]_[c]_[k]
+  |
+[h]_[e]_[l]_[l]_[o]
+          |_
+            [p]
+```
