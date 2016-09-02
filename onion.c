@@ -17,14 +17,14 @@
 
 #include "onion.h"
 
-static const u8 onion_chars[32] = {
+const unsigned char onion_chars[32] = {
 	'a','b','c','d','e','f','g','h',
 	'i','j','k','l','m','n','o','p',
 	'q','r','s','t','u','v','w','x',
 	'y','z','2','3','4','5','6','7'
 };
 
-static u8 onion_values[256] = {
+const unsigned char onion_values[256] = {
 	0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
 	0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
 	0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
@@ -60,20 +60,20 @@ static u8 onion_values[256] = {
 };
 
 
-static u8
-onion_char(u8 c)
+static unsigned char
+onion_char(const unsigned char c)
 {
 	return onion_chars[c & 0x1f];
 }
 
-static u8
-onion_value(u8 c)
+static unsigned char
+onion_value(const unsigned char c)
 {
 	return onion_values[c] & 0x1f;
 }
 
 static void
-onion_decode_block(u8 *dst, const u8 *src)
+onion_decode_block(unsigned char *dst, const unsigned char *src)
 {
 	dst[0]  = onion_value(src[0]) << 3 & 0xf8;
 	dst[0] |= onion_value(src[1]) >> 2 & 0x07;
@@ -90,7 +90,7 @@ onion_decode_block(u8 *dst, const u8 *src)
 }
 
 static void
-onion_encode_block(u8 *dst, const u8 *src)
+onion_encode_block(unsigned char *dst, const unsigned char *src)
 {
 	dst[0] = onion_char(src[0] >> 3);
 	dst[1] = onion_char(src[0] << 2 | src[1] >> 6);
@@ -103,11 +103,11 @@ onion_encode_block(u8 *dst, const u8 *src)
 }
 
 bool
-onion_only(const u8 *word)
+onion_only(const unsigned char *word)
 {
 	if (!word)
 		goto fail;
-	for (const u8 *o = word; *o; o++) {
+	for (const unsigned char *o = word; *o; o++) {
 		if (0x20 == onion_values[*o])
 			goto fail;
 	}
@@ -117,14 +117,14 @@ fail:
 }
 
 void
-onion_decode(u8 *dst, const u8 *src)
+onion_decode(unsigned char *dst, const unsigned char *src)
 {
 	onion_decode_block(&dst[0], &src[0]);
 	onion_decode_block(&dst[5], &src[8]);
 }
 
 void
-onion_encode(u8 *dst, const u8 *src)
+onion_encode(unsigned char *dst, const unsigned char *src)
 {
 	onion_encode_block(&dst[0], &src[0]);
 	onion_encode_block(&dst[8], &src[5]);

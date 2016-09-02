@@ -4,8 +4,6 @@
 #include <openssl/crypto.h>
 #include <stdlib.h>
 
-bool
-lock_create(void);
+bool lock_create(void);
 
-void
-lock_destroy(void);
+void lock_destroy(void);

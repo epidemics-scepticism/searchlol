@@ -27,6 +27,7 @@
 #include <sys/time.h>
 #include "search.h"
 #include "onion.h"
+#include "pronounce.h"
 
 static bool seeded_rng = false;
 
@@ -40,8 +41,7 @@ seed_rng(void)
 {
 	unsigned char buf[32] = { 0 };
 	size_t read_bytes = 0;
-	FILE *entropy = NULL;
-	entropy = fopen("/dev/urandom", "r"); /* hardcoded urandom sucks */
+	FILE *entropy = fopen("/dev/urandom", "r"); /* hardcoded urandom sucks */
 	if (!entropy)
 		err(-1, "fopen"); /* death before dishonour */
 	while (read_bytes < sizeof(buf)) {
@@ -125,7 +125,6 @@ fail:
 void
 test_onions(const void *s, const bool full)
 {
-	seed_rng();
 	char o[17];
 	RSA *r = NULL;
 	FILE *out = NULL;
@@ -138,7 +137,7 @@ test_onions(const void *s, const bool full)
 		pthread_mutex_unlock(&stats_lock);
 		if (!rsa_to_onion(r, o))
 			goto end_loop;
-		if (search_search(s, o, full)) {
+		if (search_search(s, o, full) || search_pronounce(o)) {
 			warnx("found '%s'", o);
 			pthread_mutex_lock(&stats_lock);
 			num_matches++;
@@ -155,7 +154,10 @@ end_loop:
 			RSA_free(r);
 			r=NULL;
 		}
-		if (out) {fclose(out);out=NULL;}
+		if (out) {
+			fclose(out);
+			out=NULL;
+		}
 	}
 }
 
@@ -170,10 +172,11 @@ thetime(void)
 void
 dump_stats(void)
 {
-	/* the threads might end up missing some stats, need to create a mutex to  */
 	size_t uptime = thetime() - start_time;
 	if (start_time == 0 || uptime == 0) return;
+	pthread_mutex_lock(&stats_lock);
 	fprintf(stderr, "-- Stats --\nWe have been running for %lu seconds.\nWe have generated %lu keys (%lu keys/second).\nWe have found %lu matches.\n",
 		uptime, num_keys, num_keys / uptime, num_matches
 	);
+	pthread_mutex_unlock(&stats_lock);
 }
