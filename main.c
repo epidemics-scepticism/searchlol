@@ -17,6 +17,7 @@
 
 #include "lock.h"
 #include "onion.h"
+#include "pronounce.h"
 #include "rsa.h"
 #include "search.h"
 #include <err.h>
@@ -52,6 +53,9 @@ void die(void) {
   fprintf(stderr, "Clearing search...");
   if (s)
     destroy_search(s);
+  fprintf(stderr, "Done\n");
+  fprintf(stderr, "Clearing pronounce...");
+  destroy_pronounce();
   fprintf(stderr, "Done\n");
   fprintf(stderr, "Clearing locks...");
   lock_destroy();
@@ -92,6 +96,7 @@ bool handle_args(int argc, char **argv) {
       die();
     }
   }
+  populate_pronounce();
   return populated;
 }
 
