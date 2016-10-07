@@ -1,6 +1,6 @@
 #pragma once
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 /* word is a nul terminated string, returns true if only onion characters */
 bool onion_only(const unsigned char *word);

@@ -1,6 +1,6 @@
 #pragma once
-#include <stdbool.h>
 #include "onion.h"
+#include <stdbool.h>
 
 bool search_pronounce(const char *o);
 

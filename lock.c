@@ -20,43 +20,39 @@
 static pthread_mutex_t *muts = NULL;
 static int num_locks = 0;
 
-void
-lock_handler(int mode, int n, const char *file, int line)
-{
-	if (0 > n || num_locks < n)
-		return;
-	if (mode & CRYPTO_LOCK) {
-		pthread_mutex_lock(&muts[n]);
-	} else {
-		pthread_mutex_unlock(&muts[n]);
-	}
+void lock_handler(int mode, int n, const char *file, int line) {
+  if (0 > n || num_locks < n)
+    return;
+  if (mode & CRYPTO_LOCK) {
+    pthread_mutex_lock(&muts[n]);
+  } else {
+    pthread_mutex_unlock(&muts[n]);
+  }
 }
 
-bool
-lock_create(void)
-{
-	if (!muts) {
-		num_locks = CRYPTO_num_locks();
-		if (num_locks < 0) return false;
-		muts = calloc(num_locks, sizeof(pthread_mutex_t));
-		if (!muts) return false;
-		for (int i = 0; i < num_locks; i++)
-			pthread_mutex_init(&muts[i], NULL);
-		CRYPTO_set_id_callback(pthread_self);
-		CRYPTO_set_locking_callback(lock_handler);
-		return true;
-	}
-	return false;
+bool lock_create(void) {
+  if (!muts) {
+    num_locks = CRYPTO_num_locks();
+    if (num_locks < 0)
+      return false;
+    muts = calloc(num_locks, sizeof(pthread_mutex_t));
+    if (!muts)
+      return false;
+    for (int i = 0; i < num_locks; i++)
+      pthread_mutex_init(&muts[i], NULL);
+    CRYPTO_set_id_callback(pthread_self);
+    CRYPTO_set_locking_callback(lock_handler);
+    return true;
+  }
+  return false;
 }
 
-void
-lock_destroy(void)
-{
-	if (muts) {
-		for (size_t i = 0; i < num_locks; i++) {
-			pthread_mutex_destroy(&muts[i]);
-		}
-		free(muts);
-		muts = NULL;
-	}
+void lock_destroy(void) {
+  if (muts) {
+    for (size_t i = 0; i < num_locks; i++) {
+      pthread_mutex_destroy(&muts[i]);
+    }
+    free(muts);
+    muts = NULL;
+  }
 }
