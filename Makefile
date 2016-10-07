@@ -1,4 +1,4 @@
-CFLAGS=-O2 -std=gnu99 -pthread -s
+CFLAGS=-O2 -std=gnu11 -pthread -s
 LFLAGS=-lcrypto
 
 default: main

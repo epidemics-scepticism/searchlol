@@ -62,12 +62,15 @@ static void seed_rng(void) {
 static RSA *gen_rsa(void) {
   if (!RAND_status())
     seed_rng();
-  int ret = -1;
-  static int e_init = 0;
-  BIGNUM e;
+  int ret = 0;
+  _Thread_local static int e_init = 0;
+  _Thread_local static BIGNUM e;
   RSA *r = NULL;
 
   if (!e_init) {
+    pthread_mutex_lock(&stats_lock);
+    warnx("this shouldnt happen a lot");
+    pthread_mutex_unlock(&stats_lock);
     BN_init(&e);
     if (!BN_set_word(&e, 65537)) {
       warnx("BN_set_word");
