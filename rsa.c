@@ -63,7 +63,7 @@ static RSA *gen_rsa(void) {
   if (!RAND_status())
     seed_rng();
   int ret = -1;
-  int e_init = 0;
+  static int e_init = 0;
   BIGNUM e;
   RSA *r = NULL;
 

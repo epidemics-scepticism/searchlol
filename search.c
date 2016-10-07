@@ -71,11 +71,12 @@ void destroy_search(void *_s) {
 
 bool populate_search(void *_root, const char *filename) {
   SEARCH *root = _root;
+  FILE *dict = NULL;
   if (!root)
     goto fail;
   if (!filename)
     goto fail;
-  FILE *dict = fopen(filename, "r");
+  dict = fopen(filename, "r");
   if (!dict)
     goto fail;
   unsigned char buf[512] = {0};
