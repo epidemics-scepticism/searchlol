@@ -68,9 +68,6 @@ static RSA *gen_rsa(void) {
   RSA *r = NULL;
 
   if (!e_init) {
-    pthread_mutex_lock(&stats_lock);
-    warnx("this shouldnt happen a lot");
-    pthread_mutex_unlock(&stats_lock);
     BN_init(&e);
     if (!BN_set_word(&e, 65537)) {
       warnx("BN_set_word");
